@@ -3,9 +3,6 @@
 # todo log mv and btrfs output?
 # todo test - pid - rsnapshot can see pidfile created by this script, backup - all level, no level
 
-# bug pid file is not deleted after the script is finished
-# bug backup rotation is not hit
-
 #default config location
 #todo change to /etc/rsnapshot.conf
 config_file="rsnapshot.conf"
@@ -129,14 +126,14 @@ fi
 echo "$commands: started" >> $logfile
 
 #delete oldest snapshot if it exist
-if [ -d "${backups_level[$command_index]}.$((${backups_level_count[$command_index]}-1))" ]
+if [ -d "$snapshot_root/${backups_level[$command_index]}.$((${backups_level_count[$command_index]}-1))" ]
 then
-	echo "btrfs subvolume delete \"${backups_level[$command_index]}.$((${backups_level_count[$command_index]}-1))\" "
-	btrfs subvolume delete "${backups_level[$command_index]}.$((${backups_level_count[$command_index]}-1))"
+	echo "btrfs subvolume delete \"$snapshot_root/${backups_level[$command_index]}.$((${backups_level_count[$command_index]}-1))\" "
+	btrfs subvolume delete "$snapshot_root/${backups_level[$command_index]}.$((${backups_level_count[$command_index]}-1))"
 	btrfs_return_value=$?
 	if [ $btrfs_return_value -ne 0 ]
 	then
-		echo "Error: Failed to delete snapshot ${backups_level[$command_index]}.$((${backups_level_count[$command_index]}-1)). Error code: $btrfs_return_value" >> $logfile
+		echo "Error: Failed to delete snapshot $snapshot_root/${backups_level[$command_index]}.$((${backups_level_count[$command_index]}-1)). Error code: $btrfs_return_value" >> $logfile
 		exit 1
 	fi
 fi
@@ -144,13 +141,13 @@ fi
 #rotate backups
 for ((j=${backups_level_count[$command_index]}-1 ; j>=1; j--))
 do
-	if [ -d ${backups_level[$command_index]}.$(($j-1)) ]
+	if [ -d $snapshot_root/${backups_level[$command_index]}.$(($j-1)) ]
 	then
-		echo "mv \"${backups_level[$command_index]}.$(($j-1)) ${backups_level[$command_index]}.$j\""
-		mv "${backups_level[$command_index]}.$(($j-1)) ${backups_level[$command_index]}.$j"
-		if [ -d ${backups_level[$command_index]}.$(($j-1)) ]
+		echo "mv \"$snapshot_root/${backups_level[$command_index]}.$(($j-1)) $snapshot_root/${backups_level[$command_index]}.$j\""
+		mv "$snapshot_root/${backups_level[$command_index]}.$(($j-1)) $snapshot_root/${backups_level[$command_index]}.$j"
+		if [ -d $snapshot_root/${backups_level[$command_index]}.$(($j-1)) ]
 		then
-			echo "Error: failed to move ${backups_level[$command_index]}.$(($j-1))" >> $logfile
+			echo "Error: failed to move $snapshot_root/${backups_level[$command_index]}.$(($j-1))" >> $logfile
 			exit 1
 		fi
 	fi
@@ -173,18 +170,23 @@ then
 		echo ".sync doesn't exist" >> $logfile
 	fi
 else
-	if [ -d ${backups_level[$(($command_index-1))]}.${backups_level_count[$(($command_index-1))]} ]
+	if [ -d $snapshot_root/${backups_level[$(($command_index-1))]}.${backups_level_count[$(($command_index-1))]} ]
 	then
-		echo "mv \"${backups_level[$(($command_index-1))]}.${backups_level_count[$(($command_index-1))]} ${backups_level[$command_index]}.0\" "
-		mv "${backups_level[$(($command_index-1))]}.${backups_level_count[$(($command_index-1))]} ${backups_level[$command_index]}.0"
-		if [ -d ${backups_level[$(($command_index-1))]}.${backups_level_count[$(($command_index-1))]} ] 
+		echo "mv \"$snapshot_root/${backups_level[$(($command_index-1))]}.${backups_level_count[$(($command_index-1))]} $snapshot_root/${backups_level[$command_index]}.0\" "
+		mv "$snapshot_root/${backups_level[$(($command_index-1))]}.${backups_level_count[$(($command_index-1))]} $snapshot_root/${backups_level[$command_index]}.0"
+		if [ -d $snapshot_root/${backups_level[$(($command_index-1))]}.${backups_level_count[$(($command_index-1))]} ] 
 		then
-			echo "Error: failed to move ${backups_level[$(($command_index-1))]}.${backups_level_count[$(($command_index-1))]}" >> $logfile 
+			echo "Error: failed to move $snapshot_root/${backups_level[$(($command_index-1))]}.${backups_level_count[$(($command_index-1))]}" >> $logfile 
 			exit 1
 		fi
 	else
-		echo "${backups_level[$(($command_index-1))]}.${backups_level_count[$(($command_index-1))]} doesn't exist yet" >> $logfile
+		echo "$snapshot_root/${backups_level[$(($command_index-1))]}.${backups_level_count[$(($command_index-1))]} doesn't exist yet" >> $logfile
 	fi
+fi
+
+if [ -f $lockfile ]
+then
+	rm $lockfile
 fi
 
 echo "$commands: completed successfully"
