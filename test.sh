@@ -1,11 +1,7 @@
 #!/bin/bash
 
-# todo log mv and btrfs output?
-# todo test - pid - rsnapshot can see pidfile created by this script, backup - all level, no level
-
 #default config location
-#todo change to /etc/rsnapshot.conf
-config_file="rsnapshot.conf"
+config_file="/etc/rsnapshot.conf"
 
 declare -a commands=()
 
@@ -128,8 +124,8 @@ echo "$commands: started" >> $logfile
 #delete oldest snapshot if it exist
 if [ -d "$snapshot_root/${backups_level[$command_index]}.$((${backups_level_count[$command_index]}-1))" ]
 then
-	echo "btrfs subvolume delete \"$snapshot_root/${backups_level[$command_index]}.$((${backups_level_count[$command_index]}-1))\" "
-	btrfs subvolume delete "$snapshot_root/${backups_level[$command_index]}.$((${backups_level_count[$command_index]}-1))"
+	echo "btrfs subvolume delete $snapshot_root/${backups_level[$command_index]}.$((${backups_level_count[$command_index]}-1))" >> $logfile
+	btrfs subvolume delete "$snapshot_root/${backups_level[$command_index]}.$((${backups_level_count[$command_index]}-1))" >> $logfile
 	btrfs_return_value=$?
 	if [ $btrfs_return_value -ne 0 ]
 	then
@@ -143,8 +139,8 @@ for ((j=${backups_level_count[$command_index]}-1 ; j>=1; j--))
 do
 	if [ -d $snapshot_root/${backups_level[$command_index]}.$(($j-1)) ]
 	then
-		echo "mv \"$snapshot_root/${backups_level[$command_index]}.$(($j-1)) $snapshot_root/${backups_level[$command_index]}.$j\""
-		mv "$snapshot_root/${backups_level[$command_index]}.$(($j-1)) $snapshot_root/${backups_level[$command_index]}.$j"
+		echo "mv $snapshot_root/${backups_level[$command_index]}.$(($j-1)) $snapshot_root/${backups_level[$command_index]}.$j" >> $logfile
+		mv $snapshot_root/${backups_level[$command_index]}.$(($j-1)) $snapshot_root/${backups_level[$command_index]}.$j >> $logfile
 		if [ -d $snapshot_root/${backups_level[$command_index]}.$(($j-1)) ]
 		then
 			echo "Error: failed to move $snapshot_root/${backups_level[$command_index]}.$(($j-1))" >> $logfile
@@ -153,13 +149,13 @@ do
 	fi
 done
 
-#if first interval 
+#move backup levels 
 if [ $command_index -eq 0 ]
 then
 	if [ -d $snapshot_root/.sync ]
 	then
-		echo "btrfs subvolume snapshot $snapshot_root/.sync $snapshot_root/${backups_level[$command_index]}.0"
-		btrfs subvolume create "$snapshot_root/.sync $snapshot_root/${backups_level[$command_index]}.0"
+		echo "btrfs subvolume snapshot $snapshot_root/.sync $snapshot_root/${backups_level[$command_index]}.0" >> $logfile
+		btrfs subvolume snapshot $snapshot_root/.sync $snapshot_root/${backups_level[$command_index]}.0 >> $logfile
 		btrfs_return_value=$?
 		if [ $btrfs_return_value -ne 0 ]
 		then
@@ -170,11 +166,11 @@ then
 		echo ".sync doesn't exist" >> $logfile
 	fi
 else
-	if [ -d $snapshot_root/${backups_level[$(($command_index-1))]}.${backups_level_count[$(($command_index-1))]} ]
+	if [ -d $snapshot_root/${backups_level[$(($command_index-1))]}.$((${backups_level_count[$(($command_index-1))]}-1)) ]
 	then
-		echo "mv \"$snapshot_root/${backups_level[$(($command_index-1))]}.${backups_level_count[$(($command_index-1))]} $snapshot_root/${backups_level[$command_index]}.0\" "
-		mv "$snapshot_root/${backups_level[$(($command_index-1))]}.${backups_level_count[$(($command_index-1))]} $snapshot_root/${backups_level[$command_index]}.0"
-		if [ -d $snapshot_root/${backups_level[$(($command_index-1))]}.${backups_level_count[$(($command_index-1))]} ] 
+		echo "mv $snapshot_root/${backups_level[$(($command_index-1))]}.$((${backups_level_count[$(($command_index-1))]}-1)) $snapshot_root/${backups_level[$command_index]}.0" >> $logfile
+		mv $snapshot_root/${backups_level[$(($command_index-1))]}.$((${backups_level_count[$(($command_index-1))]}-1)) $snapshot_root/${backups_level[$command_index]}.0 > $logfile
+		if [ -d $snapshot_root/${backups_level[$(($command_index-1))]}.$((${backups_level_count[$(($command_index-1))]}-1)) ] 
 		then
 			echo "Error: failed to move $snapshot_root/${backups_level[$(($command_index-1))]}.${backups_level_count[$(($command_index-1))]}" >> $logfile 
 			exit 1
@@ -189,5 +185,5 @@ then
 	rm $lockfile
 fi
 
-echo "$commands: completed successfully"
+echo "$commands: completed successfully" >> $logfile
 
